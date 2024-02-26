@@ -676,6 +676,191 @@ Remember, Kubernetes is designed to be resilient and should automatically restar
 However, if you find that some components are not running as expected, you can manually restart them using
  the `kubectl apply` command.
 
-## License
 
-Include information about the license of your project.
+
+
+## How clean up resources in different namespaces that are related to MongoDB and other services in your minikube ?
+
+Here's how you can clean them up:
+
+1. **Delete StatefulSets**: MongoDB seems to be running as a StatefulSet in the `database` namespace.
+You can delete it with `kubectl delete statefulset mongodb -n database` and `kubectl delete statefulset mongodb-arbiter -n database`.
+
+2. **Delete Pods**: After deleting the StatefulSets, you can delete the remaining pods in the `database`
+namespace with `kubectl delete pods --all -n database`.
+
+3. **Delete Services**: Check for any remaining services in the `database` namespace with `kubectl get svc -n database` and delete as necessary.
+
+4. **Delete Persistent Volume Claims (PVCs)**: Check for any PVCs in the `database` namespace with
+`kubectl get pvc -n database` and delete as necessary.
+
+5. **Delete the Namespace**: If you don't need the `database` namespace anymore, you can delete it with `kubectl delete namespace database`.
+
+6. **Delete Monitoring Resources**: It seems like you have a `monitoring` namespace as well. If you want to delete it and all its resources,
+ you can use `kubectl delete namespace monitoring`.
+
+Remember, deleting these resources will remove all data stored in them. Make sure you have backups if necessary.
+
+Make following actions:
+
+
+Exists the `kubectl get deployments` command. It is used in Kubernetes to fetch and display all the deployment resources in the current or specified namespace.
+
+Here's how you can use it:
+
+```bash
+kubectl get deployments
+```
+
+This command will list all deployments in the current namespace. If you want to get deployments from a specific namespace, you can use:
+
+```bash
+kubectl get deployments -n <namespace>
+```
+
+Replace `<namespace>` with the name of your namespace.
+
+
+To get the current namespace's name in Kubernetes, you can use the `kubectl config view` command with a combination of `grep` and `awk` commands. Here's how you can do it:
+
+```bash
+kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null || echo "default"
+```
+
+This command will output the name of the current namespace. If no namespace is set, it will output "default".
+
+
+Below is the entire deep cleaning session from the previous state described above:
+```bash
+NAME                                  READY   STATUS             RESTARTS   AGE
+mongo-express-68bd98cd4-95zfs         0/1     ImagePullBackOff   0          2m41s
+mongo-express-8bbdbdcb5-2dtfr         1/1     Running            0          2m23s
+PS D:\k8s> kubectl delete deployment mongo-express-68bd98cd4
+PS D:\k8s> kubectl delete deployment mongo-express-8bbdbdcb5
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s> kubectl get pods
+PS D:\k8s>
+PS D:\k8s>
+mongodb-deployment   1/1     1            1           16h
+PS D:\k8s> kubectl delete deployment mongo-express
+deployment.apps "mongo-express" deleted
+PS D:\k8s> kubectl delete deployment mongodb-deployment
+deployment.apps "mongodb-deployment" deleted
+PS D:\k8s> kubectl get deployments
+No resources found in default namespace.
+PS D:\k8s> kubectl delete pods
+PS D:\k8s> kubectl get pods
+No resources found in default namespace.
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s> kubectl get svc
+NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP   40h
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s> kubernetes get pods --all namespaces
+kubernetes : The term 'kubernetes' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ kubernetes get pods --all namespaces
++ ~~~~~~~~~~
+NAMESPACE     NAME                                                     READY   STATUS         RESTARTS       AGE
+database      mongodb-1                                                2/2     Running        15 (14h ago)   39h
+kube-system   coredns-5dd5756b68-cr9mz                                 1/1     Running        4 (14h ago)    40h
+kube-system   kube-apiserver-minikube                                  1/1     Running        5 (14h ago)    40h
+kube-system   kube-controller-manager-minikube                         1/1     Running        6 (14h ago)    40h
+kube-system   kube-proxy-xbbpc                                         1/1     Running        4 (14h ago)    40h
+kube-system   kube-scheduler-minikube                                  1/1     Running        4 (14h ago)    40h
+monitoring    alertmanager-prometheus-operator-kube-p-alertmanager-0   2/2     Running        8 (14h ago)    39h
+monitoring    prometheus-operator-kube-p-operator-565dc87784-7958j     1/1     Running        6 (14h ago)    39h
+monitoring    prometheus-operator-prometheus-node-exporter-z6gs9       1/1     Running        5 (14h ago)    39h
+staging       drage-5c97b7b78d-bpf86                                   0/1     ErrImagePull   0              38h
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s>
+statefulset.apps "mongodb" deleted
+statefulset.apps "mongodb-arbiter" deleted
+No resources found
+NAME                       TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)     AGE
+mongodb-headless           ClusterIP   None           <none>        27017/TCP   39h
+service "mongodb-arbiter-headless" deleted
+PS D:\k8s> kubectl delete service mongodb-headless -n database
+service "mongodb-headless" deleted
+PS D:\k8s> kubectl delete service mongodb-metrics -n database
+service "mongodb-metrics" deleted
+PS D:\k8s> kubectl get svc -n database
+No resources found in database namespace.
+PS D:\k8s> kubectl get pvc -n database
+NAME                STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+datadir-mongodb-0   Bound    pvc-d93f5b84-e940-439c-92d7-1479ede98487   20Gi       RWO            standard       40h
+datadir-mongodb-1   Bound    pvc-32512088-c25a-4d89-b116-668fa7c759b2   20Gi       RWO            standard       39h
+PS D:\k8s> kubectl delete pvc datadir-mongodb-0 -n database
+persistentvolumeclaim "datadir-mongodb-0" deleted
+PS D:\k8s> kubectl delete pvc datadir-mongodb-1 -n database
+persistentvolumeclaim "datadir-mongodb-1" deleted
+PS D:\k8s> kubectl get pvc -n database
+No resources found in database namespace.
+PS D:\k8s> kubectl delete namespace database
+namespace "database" deleted
+PS D:\k8s> kubectl delete namespace monitoring
+namespace "monitoring" deleted
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s>
+PS D:\k8s> kubectl get namespaces
+NAME              STATUS   AGE
+default           Active   40h
+kube-node-lease   Active   40h
+kube-public       Active   40h
+kube-system       Active   40h
+staging           Active   39h
+PS D:\k8s>
+```
+
+
+##
+In addition .To overcome appearing of message: "Unable resolve current Docker CLI context "default ...""
+
+** Check if the Docker context "default" exists
+```bash
+  docker context ls
+```
+
+** If the "default" context does not exist, create it
+ ```bash
+  docker context create default
+```
+
+** If the "default" context exists but is not set as the current context, set it
+```bash
+docker context use default
+```
+
+
+```bash
+PS D:\k8s> minikube status
+minikube
+type: Control Plane
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+```
+
+
+## Finaly.
+
+Deletes a local Kubernetes cluster
+When you’re done testing or developing within Minikube, the cleanup is as simple as a single command.
+This command deletes the VM and removes all associated files.
+
+```bash
+minikube delete
+```
